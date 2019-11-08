@@ -29,4 +29,3 @@ test:
   evaluate: False
   eval_freq: 20
   rerank: False
-  visactmap: False

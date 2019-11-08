@@ -38,7 +38,6 @@ def main():
         cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
     set_random_seed(cfg.train.seed)
-
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_devices
     log_name = 'test.log' if cfg.test.evaluate else 'train.log'
     log_name += time.strftime('-%Y-%m-%d-%H-%M-%S')
@@ -47,7 +46,7 @@ def main():
     torch.backends.cudnn.benchmark = True
 
     datamanager = ImageDataManager(**imagedata_kwargs(cfg))
-
+    trainloader, queryloader, galleryloader = datamanager.return_dataloaders()
     print('Building model: {}'.format(cfg.model.name))
     model = build_model(cfg.model.name, datamanager.num_train_pids, 'triplet', pretrained=cfg.model.pretrained)
 
@@ -64,8 +63,6 @@ def main():
     if cfg.model.resume and check_isfile(cfg.model.resume):
         cfg.train.start_epoch = resume_from_checkpoint(cfg.model.resume, model, optimizer=optimizer)
 
-    trainloader, queryloader, galleryloader = datamanager.return_dataloaders()
-
     if cfg.test.evaluate:
         distmat = evaluate(model, queryloader, galleryloader, dist_metric=cfg.test.dist_metric,
                            normalize_feature=cfg.test.normalize_feature, rerank=cfg.test.rerank, return_distmat=True)
@@ -80,9 +77,9 @@ def main():
         train(epoch, cfg.train.max_epoch, model, criterion_t, criterion_x, optimizer, trainloader,
               fixbase_epoch=cfg.train.fixbase_epoch, open_layers=cfg.train.open_layers)
         scheduler.step()
-        if (epoch + 1) % cfg.test.eval_freq == 0:
+        if (epoch + 1) % cfg.test.eval_freq == 0 or (epoch + 1) == cfg.train.max_epoch:
             rank1 = evaluate(model, queryloader, galleryloader, dist_metric=cfg.test.dist_metric,
-                             normalize_feature=cfg.test.normalize_feature, ranks=cfg.test.ranks)
+                             normalize_feature=cfg.test.normalize_feature, rerank=cfg.test.rerank)
             save_checkpoint({
                 'state_dict': model.state_dict(),
                 'epoch': epoch + 1,
@@ -124,7 +121,6 @@ def train(epoch, max_epoch, model, criterion_t, criterion_x, optimizer, trainloa
         losses_t.update(loss_t.item(), pids.size(0))
         losses_x.update(loss_x.item(), pids.size(0))
         accs.update(accuracy(outputs, pids)[0].item())
-
         if (batch_idx + 1) % 20 == 0:
             eta_seconds = batch_time.avg * (num_batches - (batch_idx + 1) + (max_epoch - (epoch + 1)) * num_batches)
             eta_str = str(datetime.timedelta(seconds=int(eta_seconds)))
@@ -203,7 +199,6 @@ def evaluate(model, queryloader, galleryloader, dist_metric='euclidean', normali
 
     print('Computing CMC and mAP ...')
     cmc, mAP = evaluate_rank(distmat, q_pids, g_pids, q_camids, g_camids)
-
     print('** Results **')
     print('mAP: {:.1%}'.format(mAP))
     print('CMC curve')

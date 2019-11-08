@@ -76,7 +76,7 @@ def main():
         train(epoch, cfg.train.max_epoch, model, criterion, optimizer, trainloader,
               fixbase_epoch=cfg.train.fixbase_epoch, open_layers=cfg.train.open_layers)
         scheduler.step()
-        if (epoch + 1) % cfg.test.eval_freq == 0:
+        if (epoch + 1) % cfg.test.eval_freq == 0 or (epoch + 1) == cfg.train.max_epoch:
             rank1 = evaluate(model, queryloader, galleryloader, dist_metric=cfg.test.dist_metric,
                              normalize_feature=cfg.test.normalize_feature, rerank=cfg.test.rerank)
             save_checkpoint({
