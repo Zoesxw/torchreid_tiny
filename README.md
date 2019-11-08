@@ -1,5 +1,5 @@
 # torchreid_tiny
-Refer to code ['deep-person-reid'](https://github.com/KaiyangZhou/deep-person-reid)
+Refer to code [deep-person-reid](https://github.com/KaiyangZhou/deep-person-reid)
 ```
 @article{torchreid,
   title={Torchreid: A Library for Deep Learning Person Re-Identification in Pytorch},
